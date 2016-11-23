@@ -119,7 +119,7 @@ AC_ARG_ENABLE(multilib,
 	)
 
 AS_IF([test "x$enable_multilib" != xno],
-        [AC_SUBST(multilib_flags,)],
+        [AC_SUBST(multilib_flags,--enable-multilib)],
 	[AC_SUBST(multilib_flags,--disable-multilib)])
 
 AC_ARG_ENABLE(gcc-checking,

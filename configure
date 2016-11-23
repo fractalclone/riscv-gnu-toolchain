@@ -3302,6 +3302,7 @@ fi
 
 
 if test "x$enable_multilib" != xno; then :
+  multilib_flags=--enable-multilib
 
 else
   multilib_flags=--disable-multilib

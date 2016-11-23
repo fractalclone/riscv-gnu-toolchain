@@ -43,11 +43,14 @@ MULTILIB_FLAGS := @multilib_flags@
 ATOMIC_CFLAGS := @atomic_cflags@
 BINUTILS_FLOAT_FLAGS := @binutils_float_flags@
 GCC_FLOAT_FLAGS := @gcc_float_flags@
-GLIBC_FLOAT_FLAGS := @glibc_float_flags@
+GLIBC_FLOAT_FLAGS := @glibc_float_flags@ $(GLIBC_FLOAT_FLAGS_EXTRA)
 GCC_CHECKING_FLAGS := @gcc_checking@
 
 CFLAGS_FOR_TARGET := $(CFLAGS_FOR_TARGET_EXTRA) $(ATOMIC_CFLAGS)
 ASFLAGS_FOR_TARGET := $(ASFLAGS_FOR_TARGET_EXTRA)
+GLIBC_TARGET_FLAGS := $(GLIBC_TARGET_FLAGS_EXTRA)
+GLIBC_CC_FOR_TARGET ?= riscv$(XLEN)-unknown-linux-gnu-gcc
+GLIBC_CXX_FOR_TARGET ?= riscv$(XLEN)-unknown-linux-gnu-g++
 
 all: @default_target@
 
@@ -57,44 +60,40 @@ ifneq ($(findstring --disable-multilib,$(MULTILIB_FLAGS)),)
 linux: stamps/build-gcc-linux-stage2
 else
 linux:
-	$(MAKE) stamps/build-gcc-linux-stage1 XLEN=64
-	$(MAKE) stamps/build-glibc-linux64 XLEN=64
-	$(MAKE) stamps/build-glibc-linux64-soft-float XLEN=64 MULTILIB=-soft-float \
-		GLIBC_FLOAT_FLAGS="--without-fp --libdir=/usr/lib/soft-float libc_cv_slibdir=/lib/soft-float"
-	$(MAKE) stamps/build-glibc-linux64-no-atomic XLEN=64 MULTILIB=-no-atomic \
-		CC="riscv64-unknown-linux-gnu-gcc -mno-atomic" \
-		CFLAGS_FOR_TARGET_EXTRA="-mno-atomic" \
-		ASFLAGS_FOR_TARGET_EXTRA="-mno-atomic" \
-		GLIBC_FLOAT_FLAGS="--libdir=/usr/lib/no-atomic libc_cv_slibdir=/lib/no-atomic"
-	$(MAKE) stamps/build-glibc-linux64-soft-float-no-atomic XLEN=64 MULTILIB=-soft-float-no-atomic \
-		CC="riscv64-unknown-linux-gnu-gcc -mno-atomic" \
-		CFLAGS_FOR_TARGET_EXTRA="-mno-atomic" \
-		ASFLAGS_FOR_TARGET_EXTRA="-mno-atomic" \
-		GLIBC_FLOAT_FLAGS="--without-fp --libdir=/usr/lib/soft-float/no-atomic libc_cv_slibdir=/lib/soft-float/no-atomic"
-	$(MAKE) stamps/build-glibc-linux32 XLEN=32 \
-		CC="riscv64-unknown-linux-gnu-gcc -m32" \
-		READELF=riscv64-unknown-linux-gnu-readelf \
-		CFLAGS_FOR_TARGET_EXTRA="-m32" \
-		ASFLAGS_FOR_TARGET_EXTRA="-m32"
-	$(MAKE) stamps/build-glibc-linux32-soft-float XLEN=32 MULTILIB=-soft-float \
-		CC="riscv64-unknown-linux-gnu-gcc -m32" \
+	$(MAKE) stamps/build-gcc-linux-stage1 \
+		XLEN=64
+	$(MAKE) stamps/build-glibc-linux64 \
+		XLEN=64 \
+		GLIBC_TARGET_FLAGS_EXTRA="--libdir=/usr/lib libc_cv_slibdir=/lib"
+	$(MAKE) stamps/build-glibc-linux64-soft-float \
+		XLEN=64 \
+		MULTILIB=-soft-float \
+		GLIBC_CC_FOR_TARGET="riscv64-unknown-linux-gnu-gcc" \
+		CFLAGS_FOR_TARGET_EXTRA="-mfloat-abi=soft" \
+		ASFLAGS_FOR_TARGET_EXTRA="-mfloat-abi=soft" \
+		LDFLAGS_FOR_TARGET_EXTRA="-mfloat-abi=soft" \
+		GLIBC_FLOAT_FLAGS_EXTRA="--without-fp" \
+		GLIBC_TARGET_FLAGS_EXTRA="--libdir=/usr/lib/soft-float libc_cv_slibdir=/lib/soft-float"
+	$(MAKE) stamps/build-glibc-linux32 \
+		XLEN=32 \
+		GLIBC_CC_FOR_TARGET="riscv64-unknown-linux-gnu-gcc -m32" \
 		READELF=riscv64-unknown-linux-gnu-readelf \
 		CFLAGS_FOR_TARGET_EXTRA="-m32" \
 		ASFLAGS_FOR_TARGET_EXTRA="-m32" \
-		GLIBC_FLOAT_FLAGS="--without-fp --libdir=/usr/lib32/soft-float libc_cv_slibdir=/lib32/soft-float"
-	$(MAKE) stamps/build-glibc-linux32-no-atomic XLEN=32 MULTILIB=-no-atomic \
-		CC="riscv64-unknown-linux-gnu-gcc -m32 -mno-atomic" \
+		LDFLAGS_FOR_TARGET_EXTRA="-m32" \
+		GLIBC_TARGET_FLAGS_EXTRA="--libdir=/usr/lib32 libc_cv_slibdir=/lib32"
+	$(MAKE) stamps/build-glibc-linux32-soft-float \
+		XLEN=32 \
+		MULTILIB=-soft-float \
+		GLIBC_CC_FOR_TARGET="riscv64-unknown-linux-gnu-gcc -m32 -mfloat-abi=soft" \
 		READELF=riscv64-unknown-linux-gnu-readelf \
-		CFLAGS_FOR_TARGET_EXTRA="-m32 -mno-atomic" \
-		ASFLAGS_FOR_TARGET_EXTRA="-m32 -mno-atomic" \
-		GLIBC_FLOAT_FLAGS="--libdir=/usr/lib32/no-atomic libc_cv_slibdir=/lib32/no-atomic"
-	$(MAKE) stamps/build-glibc-linux32-soft-float-no-atomic XLEN=32 MULTILIB=-soft-float-no-atomic \
-		CC="riscv64-unknown-linux-gnu-gcc -m32 -mno-atomic" \
-		READELF=riscv64-unknown-linux-gnu-readelf \
-		CFLAGS_FOR_TARGET_EXTRA="-m32 -mno-atomic" \
-		ASFLAGS_FOR_TARGET_EXTRA="-m32 -mno-atomic" \
-		GLIBC_FLOAT_FLAGS="--without-fp --libdir=/usr/lib32/soft-float/no-atomic libc_cv_slibdir=/lib32/soft-float/no-atomic"
-	$(MAKE) stamps/build-gcc-linux-stage2 XLEN=64
+		CFLAGS_FOR_TARGET_EXTRA="-m32 -mfloat-abi=soft" \
+		ASFLAGS_FOR_TARGET_EXTRA="-m32 -mfloat-abi=soft" \
+		LDFLAGS_FOR_TARGET_EXTRA="-m32 -mfloat-abi=soft" \
+		GLIBC_FLOAT_FLAGS_EXTRA="--without-fp" \
+		GLIBC_TARGET_FLAGS_EXTRA="--libdir=/usr/lib32/soft-float libc_cv_slibdir=/lib32/soft-float"
+	$(MAKE) stamps/build-gcc-linux-stage2 \
+		XLEN=64
 endif
 
 $(addprefix src/original-,$(PACKAGES)):
@@ -143,7 +142,7 @@ stamps/build-glibc-linux-headers: $(srcdir)/riscv-glibc stamps/build-gcc-linux-s
 	rm -rf $@ $(notdir $@)
 	mkdir $(notdir $@)
 	mkdir -p $(SYSROOT)/usr/lib $(SYSROOT)/lib
-	cd $(notdir $@) && CC= CXX= $</configure \
+	cd $(notdir $@) && CC=$(GLIBC_CC_FOR_TARGET) CXX=$(GLIBC_CXX_FOR_TARGET) $</configure \
 		--host=riscv$(XLEN)-unknown-linux-gnu \
 		--prefix=$(SYSROOT)/usr \
 		libc_cv_forced_unwind=yes \
@@ -159,7 +158,7 @@ stamps/build-glibc-linux$(XLEN)$(MULTILIB): $(srcdir)/riscv-glibc stamps/build-g
 	rm -rf $@ $(notdir $@)
 	mkdir $(notdir $@)
 	mkdir -p $(SYSROOT)/usr/lib $(SYSROOT)/lib
-	cd $(notdir $@) && CC= CXX= CFLAGS="$(CFLAGS_FOR_TARGET) -g -O2" \
+	cd $(notdir $@) && CC=$(GLIBC_CC_FOR_TARGET) CXX=$(GLIBC_CXX_FOR_TARGET) CFLAGS="$(CFLAGS_FOR_TARGET) -g -O2" \
 		ASFLAGS="$(ASFLAGS_FOR_TARGET)" \
 		$</configure \
 		--host=riscv$(XLEN)-unknown-linux-gnu \
@@ -171,7 +170,8 @@ stamps/build-glibc-linux$(XLEN)$(MULTILIB): $(srcdir)/riscv-glibc stamps/build-g
 		--enable-__thread \
 		$(MULTILIB_FLAGS) \
 		--enable-kernel=2.6.32 \
-		$(GLIBC_FLOAT_FLAGS)
+		$(GLIBC_FLOAT_FLAGS) \
+		$(GLIBC_TARGET_FLAGS)
 	$(MAKE) -C $(notdir $@)
 	$(MAKE) -C $(notdir $@) install install_root=$(SYSROOT)
 	mkdir -p $(dir $@) && touch $@
