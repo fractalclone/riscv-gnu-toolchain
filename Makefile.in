@@ -142,7 +142,7 @@ stamps/build-glibc-linux-headers: $(srcdir)/riscv-glibc stamps/build-gcc-linux-s
 	rm -rf $@ $(notdir $@)
 	mkdir $(notdir $@)
 	mkdir -p $(SYSROOT)/usr/lib $(SYSROOT)/lib
-	cd $(notdir $@) && CC=$(GLIBC_CC_FOR_TARGET) CXX=$(GLIBC_CXX_FOR_TARGET) $</configure \
+	cd $(notdir $@) && CC="$(GLIBC_CC_FOR_TARGET)" CXX="$(GLIBC_CXX_FOR_TARGET)" $</configure \
 		--host=riscv$(XLEN)-unknown-linux-gnu \
 		--prefix=$(SYSROOT)/usr \
 		libc_cv_forced_unwind=yes \
@@ -158,7 +158,7 @@ stamps/build-glibc-linux$(XLEN)$(MULTILIB): $(srcdir)/riscv-glibc stamps/build-g
 	rm -rf $@ $(notdir $@)
 	mkdir $(notdir $@)
 	mkdir -p $(SYSROOT)/usr/lib $(SYSROOT)/lib
-	cd $(notdir $@) && CC=$(GLIBC_CC_FOR_TARGET) CXX=$(GLIBC_CXX_FOR_TARGET) CFLAGS="$(CFLAGS_FOR_TARGET) -g -O2" \
+	cd $(notdir $@) && CC="$(GLIBC_CC_FOR_TARGET)" CXX="$(GLIBC_CXX_FOR_TARGET)" CFLAGS="$(CFLAGS_FOR_TARGET) -g -O2" \
 		ASFLAGS="$(ASFLAGS_FOR_TARGET)" \
 		$</configure \
 		--host=riscv$(XLEN)-unknown-linux-gnu \
