@@ -40,6 +40,7 @@ endif
 export PATH AWK SED
 
 MULTILIB_FLAGS := @multilib_flags@
+MULTILIB_NAMES := rv32ima-ilp32 rv32imafd-ilp32 rv32imagd-ilp32d rv64ima-lp64 rv64imagd-lp64 rv64imafd-lp64d
 ATOMIC_CFLAGS := @atomic_cflags@
 BINUTILS_FLOAT_FLAGS := @binutils_float_flags@
 GCC_FLOAT_FLAGS := @gcc_float_flags@
@@ -53,48 +54,8 @@ GLIBC_CC_FOR_TARGET ?= riscv$(XLEN)-unknown-linux-gnu-gcc
 GLIBC_CXX_FOR_TARGET ?= riscv$(XLEN)-unknown-linux-gnu-g++
 
 all: @default_target@
-
 newlib: stamps/build-gcc-newlib
-
-ifneq ($(findstring --disable-multilib,$(MULTILIB_FLAGS)),)
 linux: stamps/build-gcc-linux-stage2
-else
-linux:
-	$(MAKE) stamps/build-gcc-linux-stage1 \
-		XLEN=64
-	$(MAKE) stamps/build-glibc-linux64 \
-		XLEN=64 \
-		GLIBC_TARGET_FLAGS_EXTRA="--libdir=/usr/lib libc_cv_slibdir=/lib"
-	$(MAKE) stamps/build-glibc-linux64-soft-float \
-		XLEN=64 \
-		MULTILIB=-soft-float \
-		GLIBC_CC_FOR_TARGET="riscv64-unknown-linux-gnu-gcc" \
-		CFLAGS_FOR_TARGET_EXTRA="-mfloat-abi=soft" \
-		ASFLAGS_FOR_TARGET_EXTRA="-mfloat-abi=soft" \
-		LDFLAGS_FOR_TARGET_EXTRA="-mfloat-abi=soft" \
-		GLIBC_FLOAT_FLAGS_EXTRA="--without-fp" \
-		GLIBC_TARGET_FLAGS_EXTRA="--libdir=/usr/lib/soft-float libc_cv_slibdir=/lib/soft-float"
-	$(MAKE) stamps/build-glibc-linux32 \
-		XLEN=32 \
-		GLIBC_CC_FOR_TARGET="riscv64-unknown-linux-gnu-gcc -m32" \
-		READELF=riscv64-unknown-linux-gnu-readelf \
-		CFLAGS_FOR_TARGET_EXTRA="-m32" \
-		ASFLAGS_FOR_TARGET_EXTRA="-m32" \
-		LDFLAGS_FOR_TARGET_EXTRA="-m32" \
-		GLIBC_TARGET_FLAGS_EXTRA="--libdir=/usr/lib32 libc_cv_slibdir=/lib32"
-	$(MAKE) stamps/build-glibc-linux32-soft-float \
-		XLEN=32 \
-		MULTILIB=-soft-float \
-		GLIBC_CC_FOR_TARGET="riscv64-unknown-linux-gnu-gcc -m32 -mfloat-abi=soft" \
-		READELF=riscv64-unknown-linux-gnu-readelf \
-		CFLAGS_FOR_TARGET_EXTRA="-m32 -mfloat-abi=soft" \
-		ASFLAGS_FOR_TARGET_EXTRA="-m32 -mfloat-abi=soft" \
-		LDFLAGS_FOR_TARGET_EXTRA="-m32 -mfloat-abi=soft" \
-		GLIBC_FLOAT_FLAGS_EXTRA="--without-fp" \
-		GLIBC_TARGET_FLAGS_EXTRA="--libdir=/usr/lib32/soft-float libc_cv_slibdir=/lib32/soft-float"
-	$(MAKE) stamps/build-gcc-linux-stage2 \
-		XLEN=64
-endif
 
 $(addprefix src/original-,$(PACKAGES)):
 	mkdir -p src
@@ -142,7 +103,7 @@ stamps/build-glibc-linux-headers: $(srcdir)/riscv-glibc stamps/build-gcc-linux-s
 	rm -rf $@ $(notdir $@)
 	mkdir $(notdir $@)
 	mkdir -p $(SYSROOT)/usr/lib $(SYSROOT)/lib
-	cd $(notdir $@) && CC="$(GLIBC_CC_FOR_TARGET)" CXX="$(GLIBC_CXX_FOR_TARGET)" $</configure \
+	cd $(notdir $@) && CC="$(GLIBC_CC_FOR_TARGET)" $</configure \
 		--host=riscv$(XLEN)-unknown-linux-gnu \
 		--prefix=$(SYSROOT)/usr \
 		libc_cv_forced_unwind=yes \
@@ -154,12 +115,14 @@ stamps/build-glibc-linux-headers: $(srcdir)/riscv-glibc stamps/build-gcc-linux-s
 	$(MAKE) -C $(notdir $@) install-headers
 	mkdir -p $(dir $@) && touch $@
 
-stamps/build-glibc-linux$(XLEN)$(MULTILIB): $(srcdir)/riscv-glibc stamps/build-gcc-linux-stage1
+stamps/build-glibc-linux-%: $(srcdir)/riscv-glibc stamps/build-gcc-linux-stage1
 	rm -rf $@ $(notdir $@)
 	mkdir $(notdir $@)
 	mkdir -p $(SYSROOT)/usr/lib $(SYSROOT)/lib
-	cd $(notdir $@) && CC="$(GLIBC_CC_FOR_TARGET)" CXX="$(GLIBC_CXX_FOR_TARGET)" CFLAGS="$(CFLAGS_FOR_TARGET) -g -O2" \
-		ASFLAGS="$(ASFLAGS_FOR_TARGET)" \
+	cd $(notdir $@) && \
+		CC="$(GLIBC_CC_FOR_TARGET) -march=$(word 4,$(subst -, ,$@)) -mabi=$(word 5,$(subst -, ,$@))" \
+		CFLAGS="$(CFLAGS_FOR_TARGET) -g -O2 -march=$(word 4,$(subst -, ,$@)) -mabi=$(word 5,$(subst -, ,$@))" \
+		ASFLAGS="$(ASFLAGS_FOR_TARGET) -march=$(word 4,$(subst -, ,$@)) -mabi=$(word 5,$(subst -, ,$@))" \
 		$</configure \
 		--host=riscv$(XLEN)-unknown-linux-gnu \
 		--prefix=/usr \
@@ -171,7 +134,9 @@ stamps/build-glibc-linux$(XLEN)$(MULTILIB): $(srcdir)/riscv-glibc stamps/build-g
 		$(MULTILIB_FLAGS) \
 		--enable-kernel=2.6.32 \
 		$(GLIBC_FLOAT_FLAGS) \
-		$(GLIBC_TARGET_FLAGS)
+		$(GLIBC_TARGET_FLAGS) \
+		--libdir=/usr/lib/$(word 4,$(subst -, ,$@))/$(word 5,$(subst -, ,$@)) \
+		libc_cv_slibdir=/lib/$(word 4,$(subst -, ,$@))/$(word 5,$(subst -, ,$@))
 	$(MAKE) -C $(notdir $@)
 	$(MAKE) -C $(notdir $@) install install_root=$(SYSROOT)
 	mkdir -p $(dir $@) && touch $@
@@ -207,7 +172,7 @@ stamps/build-gcc-linux-stage1: $(srcdir)/riscv-gcc stamps/build-binutils-linux \
 	$(MAKE) -C $(notdir $@) inhibit-libc=true install-target-libgcc
 	mkdir -p $(dir $@) && touch $@
 
-stamps/build-gcc-linux-stage2: $(srcdir)/riscv-gcc stamps/build-glibc-linux$(XLEN) \
+stamps/build-gcc-linux-stage2: $(srcdir)/riscv-gcc $(addprefix stamps/build-glibc-linux-,$(MULTILIB_NAMES)) \
                                stamps/build-glibc-linux-headers
 	rm -rf $@ $(notdir $@)
 	mkdir $(notdir $@)
